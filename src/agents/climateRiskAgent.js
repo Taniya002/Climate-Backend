@@ -67,16 +67,29 @@ export async function runClimateRiskAgent({ location, crop, scenarioDeltas }) {
   }
    const cropProfile = getCropProfile(crop);
 
- if (!cropProfile.found) {
+if (!cropProfile.found) {
+  const heatRisk = weather.forecast_temp_max_c > 42 ? 80 
+    : weather.forecast_temp_max_c > 35 ? 55 
+    : 25;
+  const rainfallRisk = weather.forecast_rainfall_mm_7day < 10 ? 75
+    : weather.forecast_rainfall_mm_7day < 25 ? 45
+    : 15;
+  const generalScore = Math.round(heatRisk * 0.5 + rainfallRisk * 0.5);
+  
   return {
     agent: "climate_risk",
     skill_used: "climate-risk-skill",
-    climate_risk_score: 50,
-    drought_risk: 50,
-    heatwave_risk: 50,
-    rainfall_deficit_risk: 50,
-    expected_threats: weather.forecast_temp_max_c > 35 ? ["High Temperature"] : [],
+    climate_risk_score: generalScore,
+    drought_risk: rainfallRisk,
+    heatwave_risk: heatRisk,
+    rainfall_deficit_risk: rainfallRisk,
+    expected_threats: [
+      ...(heatRisk > 50 ? ["High Temperature"] : []),
+      ...(rainfallRisk > 50 ? ["Low Rainfall"] : []),
+    ],
     resolved_location: weather.resolved_location,
+    adjusted_temp_max_c: weather.forecast_temp_max_c,
+    adjusted_rainfall_mm: weather.forecast_rainfall_mm_7day,
     confidence: 0.45,
     data_unavailable: false,
     note: "Crop not in knowledge base. Using general climate assessment.",
